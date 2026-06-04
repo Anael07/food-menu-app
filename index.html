@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Menu Selector</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="top-bar">
+      <div>
+        <p class="eyebrow">Daily menu curated from structured menu data</p>
+        <h1>Choose your meal</h1>
+        <p class="intro">Browse dishes of the day by category, or let the system detect the best menu type from your free selection.</p>
+      </div>
+      <button id="toggleModeBtn" class="mode-toggle" type="button">Switch to free selection</button>
+    </header>
+
+    <section class="menu-types" aria-label="Menu types">
+      <h2>Menu Types</h2>
+      <div id="menuTypeCards" class="cards-grid"></div>
+    </section>
+
+    <main class="content" id="contentArea">
+      <section class="dish-grid" id="categoriesContainer" aria-label="Daily dishes"></section>
+    </main>
+
+    <aside class="summary-panel" aria-label="Selection summary">
+      <div>
+        <p class="summary-label">Current mode</p>
+        <p id="modeLabel" class="summary-value">Menu mode</p>
+      </div>
+      <div>
+        <p class="summary-label">Selected menu</p>
+        <p id="selectedMenuLabel" class="summary-value">None</p>
+      </div>
+      <div>
+        <p class="summary-label">Total price</p>
+        <p id="totalPrice" class="summary-value">$0.00</p>
+      </div>
+      <button id="doneBtn" class="done-btn" type="button">Done</button>
+    </aside>
+  </div>
+
+  <div id="summaryPage" class="summary-page hidden" aria-live="polite">
+    <div class="summary-card">
+      <h2>Order summary</h2>
+      <p id="summaryMenuType" class="summary-detail"></p>
+      <div id="selectedItemsSummary" class="item-list"></div>
+      <div class="summary-row">
+        <span>Total price</span>
+        <strong id="summaryTotalPrice">$0.00</strong>
+      </div>
+      <div class="nutrition-summary">
+        <h3>Nutritional summary</h3>
+        <ul id="nutritionList"></ul>
+      </div>
+      <div class="allergens-summary">
+        <h3>Allergens overview</h3>
+        <p id="allergensList">None</p>
+      </div>
+      <button id="backBtn" class="back-btn" type="button">Return to browsing</button>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
