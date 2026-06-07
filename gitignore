@@ -1,0 +1,14 @@
+# Environment variables — never commit these
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Downloaded meal images
+images/
+
+# OS files
+.DS_Store
+Thumbs.db
