@@ -2360,9 +2360,10 @@
     { cat:'bread',        label:'Bread' },
   ];
 
-  let selectedMenuType = null;
-  let selectedDishIds  = [];
-  let mensaLoading     = true;
+  let selectedMenuType  = null;
+  let selectedDishIds   = [];
+  let mensaLoading      = true;
+  let mensaLoaded       = false; // prevents duplicate loads
   var lastSelectedDishes = []; // Global — used by allergen + nutrition overlays
 
   async function sbFetch(path) {
@@ -2413,6 +2414,7 @@
   }
 
   async function loadMensaDishes() {
+    if (mensaLoaded) return; // already loaded — don't fetch again
     try {
       const today = new Date().toISOString().slice(0,10);
       let menus = await sbFetch('/rest/v1/daily_menu?menu_date=eq.'+today+'&select=*');
@@ -2420,6 +2422,7 @@
       if (!menus.length) throw new Error('No menu found');
       const meals = await sbFetch('/rest/v1/meal?menu_id=eq.'+menus[0].id+'&is_available=eq.true&select=*');
       surveyData.dishes = meals.map(mapMeal);
+      mensaLoaded = true;
     } catch(e) { console.error('Mensa load:', e); }
     finally { mensaLoading = false; }
   }
