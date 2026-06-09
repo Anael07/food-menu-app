@@ -1415,6 +1415,41 @@
     padding: 0 8px;
   }
 
+
+  /* ── DATE NAVIGATOR ── */
+  .date-nav {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; padding: 0 16px;
+    opacity: 0; transform: translateY(-8px);
+    transition: opacity 0.4s ease 0.2s, transform 0.4s ease 0.2s;
+  }
+  #mensa.active .date-nav,
+  #food-selection.active .date-nav { opacity: 1; transform: translateY(0); }
+
+  .date-nav-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: white; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .date-nav-btn:hover { transform: scale(1.15); }
+  .date-nav-btn svg { width: 16px; height: 16px; }
+  .date-nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .date-nav-btn:disabled:hover { transform: none; }
+
+  .date-nav-label {
+    background: white;
+    border: 2px solid var(--orange);
+    border-radius: 50px;
+    padding: 6px 18px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800; font-size: 14px;
+    color: var(--orange);
+    white-space: nowrap;
+    min-width: 140px; text-align: center;
+  }
+
 </style>
 </head>
 <body>
@@ -1470,7 +1505,22 @@
       <!-- Profile avatar -->
       <div class="avatar" onclick="goTo('profile')" style="cursor:pointer;" title="My profile"><svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg></div>
     </div>
-    <div class="menu-list" id="mensa-menu-list">
+    <!-- Date navigator -->
+    <div class="date-nav" style="padding-top:0;margin-top:0;">
+      <button class="date-nav-btn date-nav-prev" onclick="navDatePrev()" title="Previous day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <div class="date-nav-label">Loading...</div>
+      <button class="date-nav-btn date-nav-next" onclick="navDateNext()" title="Next day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+
+    <div class="menu-list" id="mensa-menu-list" style="margin-top:40px;">
       <!-- Populated dynamically from surveyData.menuTypes -->
     </div>
     <div class="landscape">
@@ -1508,19 +1558,34 @@
     </svg>
     <span class="fs-header-title" id="fs-menu-label">Full Menu</span>
   </div>
-  <!-- Back arrow — sits below the green banner -->
-  <div style="padding:10px 16px 0;">
+  <!-- Back arrow + date nav row -->
+  <div style="padding:0 16px;margin-top:-4px; display:flex; align-items:center; justify-content:space-between;">
     <button onclick="goTo('mensa')" style="
       width:32px; height:32px; border-radius:50%;
       background:white; border:1.5px solid var(--green);
       cursor:pointer; display:flex; align-items:center; justify-content:center;
       box-shadow:0 2px 8px rgba(0,0,0,0.08);
-      transition:transform 0.2s;
+      transition:transform 0.2s; flex-shrink:0;
     " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="15 18 9 12 15 6"></polyline>
       </svg>
     </button>
+    <!-- Date navigator -->
+    <div class="date-nav" style="padding:0; opacity:1; transform:none;">
+      <button class="date-nav-btn date-nav-prev" onclick="navDatePrev()" title="Previous day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <div class="date-nav-label">Loading...</div>
+      <button class="date-nav-btn date-nav-next" onclick="navDateNext()" title="Next day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+    <div style="width:32px;"></div><!-- spacer to balance layout -->
   </div>
   <div class="fs-scroll">
     <!-- Populated dynamically by renderFoodSelectionCards() -->
@@ -2312,6 +2377,77 @@
     document.getElementById('day-detail-overlay').classList.remove('open');
   }
 
+
+  // ── DATE NAVIGATOR ──────────────────────────────────────
+  let availableDates = []; // all dates with menus in Supabase
+  let currentDateIdx = 0;  // index into availableDates
+
+  async function loadAvailableDates() {
+    try {
+      const menus = await sbFetch('/rest/v1/daily_menu?select=id,menu_date&order=menu_date.asc');
+      availableDates = menus.map(m => ({ id: m.id, date: m.menu_date }));
+      // Set current index to today or closest date
+      const today = new Date().toISOString().slice(0, 10);
+      let idx = availableDates.findIndex(d => d.date >= today);
+      if (idx === -1) idx = availableDates.length - 1;
+      currentDateIdx = idx;
+      renderDateNav();
+    } catch(e) {
+      console.error('Date load failed:', e);
+    }
+  }
+
+  function renderDateNav() {
+    const label = document.querySelectorAll('.date-nav-label');
+    const prevBtns = document.querySelectorAll('.date-nav-prev');
+    const nextBtns = document.querySelectorAll('.date-nav-next');
+
+    if (!availableDates.length) return;
+    const current = availableDates[currentDateIdx];
+    const dateObj  = new Date(current.date + 'T12:00:00');
+    const days     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labelTxt = days[dateObj.getDay()] + ' ' + dateObj.getDate() + ' ' + months[dateObj.getMonth()];
+
+    label.forEach(el => el.textContent = labelTxt);
+    prevBtns.forEach(btn => btn.disabled = currentDateIdx === 0);
+    nextBtns.forEach(btn => btn.disabled = currentDateIdx === availableDates.length - 1);
+  }
+
+  function navDatePrev() {
+    if (currentDateIdx > 0) {
+      currentDateIdx--;
+      renderDateNav();
+      reloadMenuForDate();
+    }
+  }
+
+  function navDateNext() {
+    if (currentDateIdx < availableDates.length - 1) {
+      currentDateIdx++;
+      renderDateNav();
+      reloadMenuForDate();
+    }
+  }
+
+  async function reloadMenuForDate() {
+    if (!availableDates.length) return;
+    mensaLoading = true;
+    renderFoodSelectionCards(); // show loading state
+    try {
+      const menuId = availableDates[currentDateIdx].id;
+      const meals  = await sbFetch('/rest/v1/meal?menu_id=eq.' + menuId + '&is_available=eq.true&select=*');
+      surveyData.dishes = meals.map(mapMeal);
+    } catch(e) {
+      console.error('Menu reload failed:', e);
+    } finally {
+      mensaLoading = false;
+      renderFoodSelectionCards();
+      selectedDishIds = []; // reset selection when changing day
+      updatePriceLabel();
+    }
+  }
+
   function openNutrition() {
     document.getElementById('nutrition-overlay').classList.add('open');
   }
@@ -2418,11 +2554,19 @@
   async function loadMensaDishes() {
     if (mensaLoaded) return; // already loaded — don't fetch again
     try {
-      const today = new Date().toISOString().slice(0,10);
-      let menus = await sbFetch('/rest/v1/daily_menu?menu_date=eq.'+today+'&select=*');
-      if (!menus.length) menus = await sbFetch('/rest/v1/daily_menu?select=*&order=menu_date.desc&limit=1');
-      if (!menus.length) throw new Error('No menu found');
-      const meals = await sbFetch('/rest/v1/meal?menu_id=eq.'+menus[0].id+'&is_available=eq.true&select=*');
+      let menuId = null;
+      if (availableDates.length) {
+        // Use the currentDateIdx from available dates
+        menuId = availableDates[currentDateIdx].id;
+      } else {
+        // Fallback if dates not loaded yet
+        const today = new Date().toISOString().slice(0,10);
+        let menus = await sbFetch('/rest/v1/daily_menu?menu_date=eq.'+today+'&select=*');
+        if (!menus.length) menus = await sbFetch('/rest/v1/daily_menu?select=*&order=menu_date.desc&limit=1');
+        if (!menus.length) throw new Error('No menu found');
+        menuId = menus[0].id;
+      }
+      const meals = await sbFetch('/rest/v1/meal?menu_id=eq.'+menuId+'&is_available=eq.true&select=*');
       surveyData.dishes = meals.map(mapMeal);
       mensaLoaded = true;
     } catch(e) { console.error('Mensa load:', e); }
@@ -2688,15 +2832,15 @@
 
   async function initMensa() {
     renderMensaMenuButtons(); // always render buttons
-    if (!mensaLoading) {
-      // already loaded — just re-render
+    if (!mensaLoaded) {
+      renderFoodSelectionCards(); // show loading state
+      await loadAvailableDates(); // load all available dates first
+      await loadMensaDishes();    // load today's dishes
+      renderMensaMenuButtons();
       renderFoodSelectionCards();
-      return;
+    } else {
+      renderFoodSelectionCards();
     }
-    renderFoodSelectionCards(); // show loading state
-    await loadMensaDishes();
-    renderMensaMenuButtons();
-    renderFoodSelectionCards();
   }
 
 
@@ -2816,7 +2960,7 @@
   setTimeout(()=>{ciao.classList.replace('in','out');bO.classList.replace('in','out');bGr.classList.replace('in','out');bGn.classList.replace('in','out');},2500);
   setTimeout(()=>goTo('home'),3300);
   // Pre-load mensa data in the background so it's ready when user gets there
-  loadMensaDishes().then(() => {
+  loadAvailableDates().then(() => loadMensaDishes()).then(() => {
     renderMensaMenuButtons();
     renderFoodSelectionCards();
   });
