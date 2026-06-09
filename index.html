@@ -1992,7 +1992,9 @@
     document.addEventListener('touchend', function(e) {
       const deltaY = startY - e.changedTouches[0].clientY;
       const bubbles = document.getElementById('hf-preview-bubbles');
-      if (bubbles && bubbles.classList.contains('visible') && deltaY > 40) {
+      // Only trigger when home-food page is active AND bubbles are visible
+      const homeFoodActive = document.getElementById('home-food')?.classList.contains('active');
+      if (homeFoodActive && bubbles && bubbles.classList.contains('visible') && deltaY > 40) {
         openHfNutrition();
       }
     });
