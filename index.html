@@ -2936,21 +2936,39 @@
     const diary = getDiary();
     const meals = {};
     let toggle = 0;
+
+    function addMeal(name, dateKey) {
+      if (!name) return;
+      if (!meals[name]) {
+        meals[name] = { count:0, journals:[], color:favColor(name), trail:toggle%2===0?'L':'R' };
+        toggle++;
+      }
+      meals[name].count++;
+    }
+
     Object.entries(diary).forEach(([dateKey, entry]) => {
-      (entry.meals||[]).forEach(meal => {
-        const name = meal.name;
-        if (!meals[name]) {
-          meals[name] = { count:0, journals:[], color:favColor(name), trail:toggle%2===0?'L':'R' };
-          toggle++;
-        }
-        meals[name].count++;
+      // ── Mensa meals ─────────────────────────────────────────
+      (entry.meals||[]).forEach(meal => addMeal(meal.name, dateKey));
+
+      // ── Home foods (individual ingredients) ─────────────────
+      (entry.homeFoods||[]).forEach(food => {
+        const name = food.name || (food.food && (food.food['Food name'] || food.food.name));
+        addMeal(name, dateKey);
       });
+
+      // ── Journal entries linked to any meal ───────────────────
+      const allNames = [
+        ...(entry.meals||[]).map(m => m.name),
+        ...(entry.homeFoods||[]).map(f => f.name || (f.food && (f.food['Food name'] || f.food.name))),
+      ].filter(Boolean);
+
       (entry.journals||[]).forEach(j => {
-        (entry.meals||[]).forEach(meal => {
-          if (meals[meal.name]) meals[meal.name].journals.push({date:dateKey,title:j.title,text:j.text});
+        allNames.forEach(name => {
+          if (meals[name]) meals[name].journals.push({date:dateKey, title:j.title, text:j.text});
         });
       });
     });
+
     return Object.fromEntries(Object.entries(meals).filter(([,v])=>v.count>2));
   }
 
@@ -3890,10 +3908,21 @@
   function saveHomeIntakeToDiary(foods, totals) {
     const key   = todayKey();
     const entry = getDayEntry(key);
-    entry.homeFoods = foods; // [{name, quantity, nutrients}]
-    // Merge home nutrition into day nutrition
+    // ACCUMULATE homeFoods — append new foods to any already saved today
+    if (!entry.homeFoods) entry.homeFoods = [];
+    entry.homeFoods = entry.homeFoods.concat(foods);
+    // ACCUMULATE nutrition — add on top of what was already saved today
     if (!entry.nutrition) entry.nutrition = {};
-    entry.nutrition.home = totals;
+    const prev = entry.nutrition.home || {};
+    entry.nutrition.home = {
+      kcal:    Math.round(((prev.kcal    || 0) + (totals.kcal    || 0)) * 10) / 10,
+      protein: Math.round(((prev.protein || 0) + (totals.protein || 0)) * 10) / 10,
+      carbs:   Math.round(((prev.carbs   || 0) + (totals.carbs   || 0)) * 10) / 10,
+      fats:    Math.round(((prev.fats    || 0) + (totals.fats    || 0)) * 10) / 10,
+      fiber:   Math.round(((prev.fiber   || 0) + (totals.fiber   || 0)) * 10) / 10,
+      salt:    Math.round(((prev.salt    || 0) + (totals.salt    || 0)) * 10) / 10,
+      sugars:  Math.round(((prev.sugars  || 0) + (totals.sugars  || 0)) * 10) / 10,
+    };
     saveDayEntry(key, entry);
     refreshCalendarDots();
   }
